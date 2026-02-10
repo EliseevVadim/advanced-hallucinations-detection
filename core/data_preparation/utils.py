@@ -1,4 +1,3 @@
-import ast
 import json
 import os
 import random
@@ -10,6 +9,12 @@ import pandas as pd
 def init_random_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
+
+
+def divide_data(data: pd.DataFrame, target: str) -> tuple[pd.DataFrame, pd.Series]:
+    X = data.drop(columns=[target])
+    y = data[target]
+    return X, y
 
 
 def read_json(path: str) -> dict:
