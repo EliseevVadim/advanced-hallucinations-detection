@@ -2,6 +2,7 @@ import ast
 
 import numpy as np
 import pandas as pd
+from scipy.special import logsumexp
 
 
 def parse_logprobs(logprobs: pd.Series) -> np.ndarray | None:
@@ -14,10 +15,23 @@ def parse_logprobs(logprobs: pd.Series) -> np.ndarray | None:
         return None
 
 
-def calculate_logprobs_entropy(logprobs: pd.Series) -> np.ndarray | None:
-    probabilities = np.exp(logprobs)
-    probabilities /= np.sum(probabilities)
-    return -(probabilities * np.log(probabilities + 1e-9)).sum()
+def calculate_logprobs_entropy(logprobs: np.ndarray) -> float | None:
+    if logprobs is None or len(logprobs) == 0:
+        return None
+
+    logprobs = np.asarray(logprobs, dtype=float)
+    n = len(logprobs)
+
+    if n == 1:
+        return 0.0
+
+    log_weights = logprobs - logsumexp(logprobs)
+    weights = np.exp(log_weights)
+
+    entropy = -float(np.dot(weights, log_weights))
+    normalized_entropy = entropy / np.log(n)
+
+    return normalized_entropy
 
 
 def calculate_logprobs_stats(logprobs: np.ndarray, low_logprob_threshold: float = -5.0) -> pd.Series:
@@ -28,7 +42,8 @@ def calculate_logprobs_stats(logprobs: np.ndarray, low_logprob_threshold: float 
             "min_logprob": np.nan,
             "max_logprob": np.nan,
             "std_logprob": np.nan,
-            "low_logprob_frac": np.nan
+            "low_logprob_frac": np.nan,
+            "normalized_entropy_logprob": np.nan
         })
 
     return pd.Series({
@@ -37,7 +52,8 @@ def calculate_logprobs_stats(logprobs: np.ndarray, low_logprob_threshold: float 
         "min_logprob": float(np.min(logprobs)),
         "max_logprob": float(np.max(logprobs)),
         "std_logprob": float(np.std(logprobs)),
-        "low_logprob_frac": float(np.mean(logprobs < low_logprob_threshold))
+        "low_logprob_frac": float(np.mean(logprobs < low_logprob_threshold)),
+        "normalized_entropy_logprob": calculate_logprobs_entropy(logprobs)
     })
 
 
