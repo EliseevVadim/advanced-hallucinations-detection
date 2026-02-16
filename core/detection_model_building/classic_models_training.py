@@ -1,11 +1,7 @@
 import time
-
-import numpy as np
-
-import core.data_preparation.visualization as p
-
 from typing import Any, Optional, Union, Callable
 
+import numpy as np
 from sklearn import clone
 from sklearn.base import BaseEstimator
 from sklearn.metrics import make_scorer, precision_score, recall_score, f1_score, confusion_matrix, roc_curve, \
@@ -13,6 +9,7 @@ from sklearn.metrics import make_scorer, precision_score, recall_score, f1_score
 from sklearn.model_selection import cross_validate
 from sklearn.pipeline import Pipeline
 
+import core.data_preparation.visualization as p
 from core.detection_model_building.training_results import MultipleModelsResults, BaseMetrics, ClassificationMetrics, \
     RocCurveData, RegressionMetrics, GenericMetrics, ClassificationReportRow
 
