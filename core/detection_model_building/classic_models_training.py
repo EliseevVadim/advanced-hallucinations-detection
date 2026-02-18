@@ -2,11 +2,13 @@ import time
 from typing import Any, Optional, Union, Callable
 
 import numpy as np
+import pandas as pd
 from sklearn import clone
 from sklearn.base import BaseEstimator
 from sklearn.metrics import make_scorer, precision_score, recall_score, f1_score, confusion_matrix, roc_curve, \
     roc_auc_score
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_validate, train_test_split
+from sklearn.model_selection._search import BaseSearchCV
 from sklearn.pipeline import Pipeline
 
 import core.data_preparation.visualization as p
@@ -310,3 +312,65 @@ def evaluate_classification(y_true: Any, y_pred: Any, y_probs: Optional[Any] = N
         p.print_classification_report(metrics.to_report_dict(), model_name)
 
     return metrics
+
+
+def tune_classification_model_with_search(
+        search: BaseSearchCV,
+        X: pd.DataFrame,
+        y: pd.Series,
+        test_size: float = 0.1,
+        seed: int | None = None,
+        feature_names: list[str] | None = None,
+        plot_feature_importance: bool = True,
+        model_name: str = "Model"
+):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
+        test_size=test_size,
+        random_state=seed,
+        stratify=y
+    )
+
+    start_time = time.time()
+    search.fit(X_train, y_train)
+    best_pipeline = search.best_estimator_
+    end_time = time.time()
+
+    training_time = end_time - start_time
+
+    y_pred = best_pipeline.predict(X_test)
+
+    try:
+        y_probs = best_pipeline.predict_proba(X_test)[:, 1]
+    except Exception:
+        y_probs = None
+
+    metrics = aggregate_classification_cv_metrics(
+        accuracy=(y_pred == y_test).mean(),
+        precision=precision_score(y_test, y_pred, average="macro", zero_division=0),
+        recall=recall_score(y_test, y_pred, average="macro", zero_division=0),
+        f1_score_value=f1_score(y_test, y_pred, average="macro", zero_division=0),
+        roc_auc=roc_auc_score(y_test, y_probs) if y_probs is not None else None,
+        training_time=training_time,
+        name=model_name,
+        y_true=y_test,
+        y_pred=y_pred,
+        y_probs=y_probs
+    )
+
+    p.plot_classification_results(metrics, model_name)
+
+    if plot_feature_importance:
+        p.plot_feature_importance_cv(
+            best_pipeline,
+            model_name,
+            feature_names,
+            X_train,
+            y_train
+        )
+
+    return {
+        "search": search,
+        "best_pipeline": best_pipeline,
+        "metrics": metrics
+    }
